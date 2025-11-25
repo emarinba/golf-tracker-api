@@ -435,7 +435,7 @@
 
             /** Envía una petición POST a Apps Script para guardar/editar/eliminar */
             /** Envía una petición a Vercel Proxy (que sí permite CORS) */
-			async function sendApiRequest(action, data) {
+			async sendApiRequest(action, data) {
 				try {
 					const response = await fetch(GOOGLE_SHEETS_API_URL, {
 						method: "POST",
@@ -445,7 +445,6 @@
 
 					const text = await response.text();
 
-					// A veces Vercel devuelve texto plano → intentamos parsear
 					let json;
 					try {
 						json = JSON.parse(text);
@@ -464,6 +463,7 @@
 					throw e;
 				}
 			},
+
 
 
 
