@@ -198,7 +198,9 @@
          * * en el Paso 1.4 de la guía.
          * =====================================================================
          */
-        const GOOGLE_SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbxhZHiDn6_DPUIZocP5c9iQTNGTuKn_Sx0mDGx6izvzw-EiPT3hLwjbSMb-ooxE2KCY/exec";
+        //const GOOGLE_SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbxhZHiDn6_DPUIZocP5c9iQTNGTuKn_Sx0mDGx6izvzw-EiPT3hLwjbSMb-ooxE2KCY/exec";
+		const GOOGLE_SHEETS_API_URL = "https://golf-tracker-api.vercel.app/api/golf";
+									   
 	
         // Variables locales para simular el entorno de Firebase
         let userId = localStorage.getItem('golf_user_id') || `user_${Math.random().toString(36).substring(2, 11)}`;
@@ -432,32 +434,37 @@
             // --- 5. PERSISTENCIA DE DATOS (GOOGLE SHEETS VIA APPS SCRIPT) ---
 
             /** Envía una petición POST a Apps Script para guardar/editar/eliminar */
-            async sendApiRequest(action, data) {
-                try {
-                    const response = await fetch(GOOGLE_SHEETS_API_URL, {
-                        method: 'POST',
-                        mode: 'cors', // Crucial para la comunicación
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ action, data }),
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
-                    }
+            /** Envía una petición a Vercel Proxy (que sí permite CORS) */
+			async function sendApiRequest(action, data) {
+				try {
+					const response = await fetch(GOOGLE_SHEETS_API_URL, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ action, data })
+					});
 
-                    const result = await response.json();
-                    if (result.error) {
-                         throw new Error(result.error);
-                    }
-                    return result;
+					const text = await response.text();
 
-                } catch (e) {
-                    APP.displayError(`Error en la comunicación con Apps Script: ${e.message}`);
-                    throw new Error(`Fallo de la base de datos: ${e.message}`);
-                }
-            },
+					// A veces Vercel devuelve texto plano → intentamos parsear
+					let json;
+					try {
+						json = JSON.parse(text);
+					} catch {
+						throw new Error("Respuesta inválida del servidor: " + text);
+					}
+
+					if (json.error) {
+						throw new Error(json.error);
+					}
+
+					return json;
+
+				} catch (e) {
+					APP.displayError("Error de comunicación (proxy): " + e.message);
+					throw e;
+				}
+			},
+
 
 
             /** Extrae los datos del formulario y los prepara para guardar */
@@ -558,16 +565,14 @@
                 
                 try {
                     // El Apps Script usa doGet() para obtener todos los datos
-                    const response = await fetch(GOOGLE_SHEETS_API_URL, {
-                        method: 'GET',
-                        mode: 'cors',
-                    });
+                   const response = await fetch(GOOGLE_SHEETS_API_URL);
                     
                     if (!response.ok) {
                         throw new Error(`Error al cargar: ${response.status} ${response.statusText}`);
                     }
                     
-                    const games = await response.json();
+                    const text = await response.text();
+					const games = JSON.parse(text);
                     
                     // Asumiendo que `games` es el array de datos
                     if (games.error) {
