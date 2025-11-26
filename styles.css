@@ -42,3 +42,138 @@ body {
 
 .hcp-box { background-color: #d1fae5; color:#065f46; }
 .sch-box { background-color:#dbeafe; color:#1e40af; }
+
+#game-detail-modal {
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Modal detalle de partida */
+#game-detail-modal {
+    animation: fadeIn 0.25s ease-out;
+}
+
+#game-detail-content {
+    max-height: 80vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #10b981 #f0fdf4;
+}
+
+/* Scrollbar personalizada (solo Webkit) */
+#game-detail-content::-webkit-scrollbar {
+    width: 6px;
+}
+#game-detail-content::-webkit-scrollbar-thumb {
+    background-color: #10b981;
+    border-radius: 3px;
+}
+#game-detail-content::-webkit-scrollbar-track {
+    background-color: #f0fdf4;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Tarjetas de hoyo en el popup */
+#game-detail-content .grid > div {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+#game-detail-content .grid > div:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Colores suaves y consistentes */
+.bg-yellow-100 { background-color: #fef9c3; }
+.text-yellow-700 { color: #92400e; }
+
+/* Tarjetas de hoyo mejoradas */
+#game-detail-content .grid > div {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+#game-detail-content .grid > div:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 10px rgba(0,0,0,0.1);
+}
+
+/* Emoji más nítidos y consistentes */
+#game-detail-content .grid span.text-lg {
+    line-height: 1;
+}
+
+/* Scroll suave y colorido */
+#game-detail-content {
+    scrollbar-width: thin;
+    scrollbar-color: #10b981 #f0fdf4;
+}
+#game-detail-content::-webkit-scrollbar {
+    width: 6px;
+}
+#game-detail-content::-webkit-scrollbar-thumb {
+    background-color: #10b981;
+    border-radius: 3px;
+}
+/* Tarjetas de hoyo: enfoque visual */
+#game-detail-content .grid > div {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+#game-detail-content .grid > div:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 10px rgba(0,0,0,0.1);
+}
+
+/* Fondo y legibilidad */
+#game-detail-modal {
+    backdrop-filter: blur(3px);
+}
+
+/* Mejor centrado del contenido */
+#game-detail-content span {
+    user-select: none;
+}
+
+/* Popup refinado */
+#game-detail-modal {
+    backdrop-filter: blur(5px);
+}
+
+/* Suaviza la transición del contenido */
+#game-detail-content {
+    max-height: 80vh;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #10b981 #f0fdf4;
+}
+
+#game-detail-content::-webkit-scrollbar {
+    width: 6px;
+}
+#game-detail-content::-webkit-scrollbar-thumb {
+    background-color: #10b981;
+    border-radius: 3px;
+}
+#game-detail-content::-webkit-scrollbar-track {
+    background-color: #f0fdf4;
+}
+
+/* Hover más elegante */
+#game-detail-content .grid > div:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Transición suave de color según rendimiento */
+.bg-green-100,
+.bg-yellow-100,
+.bg-orange-100,
+.bg-red-100 {
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
+

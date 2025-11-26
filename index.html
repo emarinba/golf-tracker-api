@@ -105,6 +105,16 @@
         <section id="history" class="view">
             <div class="card p-6">
                 <h2 class="text-2xl font-bold mb-4">Historial de Partidas</h2>
+				<div class="flex justify-between items-center mb-4">
+				  <label for="sort-history" class="text-sm font-medium text-gray-700">Ordenar por:</label>
+				  <select id="sort-history" class="p-2 border rounded-lg text-sm" onchange="APP.sortHistory(this.value)">
+					<option value="date_desc">Fecha (más recientes)</option>
+					<option value="date_asc">Fecha (más antiguas)</option>
+					<option value="hcp_desc">Puntos HCP (mayor a menor)</option>
+					<option value="sch_desc">Puntos SCH (mayor a menor)</option>
+				  </select>
+				</div>
+
                 <div id="history-list" class="space-y-4">
                     <p class="text-gray-500 text-center py-8">Cargando historial...</p>
                 </div>
@@ -154,6 +164,14 @@
         </section>
 
     </div>
+	<!-- Modal de Detalle de Partida -->
+	<div id="game-detail-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+	  <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full p-6 relative overflow-y-auto max-h-[90vh]">
+		<button onclick="APP.closeGameDetail()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 font-bold text-xl">&times;</button>
+		<div id="game-detail-content"></div>
+	  </div>
+	</div>
+
 
     <!-- JS externo -->
     <script src="app.js"></script>

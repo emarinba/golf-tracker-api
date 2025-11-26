@@ -437,18 +437,159 @@
                                 <span class="score-box bg-gray-100 text-gray-700">Golpes: ${game.totalStrokes}</span>
                             </div>
                             <!-- Acciones -->
-                            <div class="flex space-x-2 mt-2 md:mt-0 justify-end">
-                                <button onclick="APP.editGame('${game.id}')" class="p-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
-                                    Editar
-                                </button>
-                                <button onclick="APP.deleteGame('${game.id}')" class="p-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
-                                    Eliminar
-                                </button>
-                            </div>
+                            <!-- Acciones -->
+							<div class="flex space-x-2 mt-2 md:mt-0 justify-end">
+								<button onclick="APP.showGameDetail('${game.id}')" class="p-2 text-sm bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">
+									Ver Detalle
+								</button>
+								<button onclick="APP.editGame('${game.id}')" class="p-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+									Editar
+								</button>
+								<button onclick="APP.deleteGame('${game.id}')" class="p-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+									Eliminar
+								</button>
+							</div>
                         </div>
                     `;
                 }).join('');
             },
+						
+			/** Muestra un popup con el detalle completo y visual de la partida */
+			/** Muestra un popup con detalle visual completo y colores según rendimiento */
+			showGameDetail(gameId) {
+				const game = historyData.find(g => g.id === gameId);
+				if (!game) return alertMessage('Partida no encontrada.', 'bg-red-500');
+
+				const modal = document.getElementById('game-detail-modal');
+				const content = document.getElementById('game-detail-content');
+
+				const dateStr = new Date(game.timestamp).toLocaleString('es-ES', {
+					dateStyle: 'medium',
+					timeStyle: 'short'
+				});
+
+				const holes = game.holes || [];
+				const rows = [
+					holes.slice(0, 6),
+					holes.slice(6, 12),
+					holes.slice(12, 18)
+				];
+
+				// Color de rendimiento según puntos HCP
+				const getPerformanceColor = (hcp) => {
+					if (hcp >= 3) return 'bg-green-100 border-green-300';
+					if (hcp === 2) return 'bg-yellow-100 border-yellow-300';
+					if (hcp === 1) return 'bg-orange-100 border-orange-300';
+					return 'bg-red-100 border-red-300';
+				};
+
+				const renderHoleRow = (holes) => `
+					<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-4 text-xs md:text-sm">
+						${holes.map(h => {
+							const perfColor = getPerformanceColor(h.hcpPoints || 0);
+							return `
+								<div class="p-3 rounded-2xl ${perfColor} border shadow-sm hover:shadow-md transition text-center relative">
+									<!-- Hoyo -->
+									<div class="mb-1">
+										<span class="inline-block bg-green-700 text-white font-bold rounded-full px-2 py-0.5 text-sm shadow-sm">
+											H${h.hole}
+										</span>
+									</div>
+									
+									<!-- Par y Estrellas -->
+									<div class="flex items-center justify-center space-x-2 mb-1">
+										<span class="bg-gray-100 text-gray-700 rounded px-2 py-0.5 text-[0.75rem] font-semibold">Par ${h.par || '-'}</span>
+										<span class="bg-yellow-100 text-yellow-700 rounded px-2 py-0.5 text-[0.75rem] font-semibold">★ ${h.stars || 0}</span>
+									</div>
+
+									<!-- Golpes -->
+									<div class="my-1 flex flex-col items-center">										
+										<span class="text-2xl font-extrabold text-blue-800">${h.strokes || '-'}</span>
+									</div>
+
+									<!-- Puntos HCP / SCR -->
+									<div class="mt-1 flex flex-col text-[0.8rem] font-semibold">
+										<span class="text-green-700">HCP: <span class="text-lg">${h.hcpPoints}</span></span>
+										<span class="text-indigo-700">SCR: <span class="text-lg">${h.schPoints}</span></span>
+									</div>
+								</div>
+							`;
+						}).join('')}
+					</div>
+				`;
+
+				// Cabecera fija con resumen
+				const header = `
+					<div class="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-gray-200 pb-3 mb-4">
+						<h3 class="text-2xl font-extrabold text-green-800">${game.courseName}</h3>
+						<p class="text-sm text-gray-500 mt-1">${dateStr} • Hándicap ${game.handicapTotal}</p>
+
+						<div class="grid grid-cols-3 gap-4 mt-3 text-center">
+							<div class="p-2 rounded-lg bg-green-50 border border-green-200">
+								<p class="text-xs text-green-700">Puntos HCP</p>
+								<p class="text-lg font-bold text-green-900">${game.scoreHCP}</p>
+							</div>
+							<div class="p-2 rounded-lg bg-blue-50 border border-blue-200">
+								<p class="text-xs text-blue-700">Puntos SCH</p>
+								<p class="text-lg font-bold text-blue-900">${game.scoreSCH}</p>
+							</div>
+							<div class="p-2 rounded-lg bg-gray-50 border border-gray-200">
+								<p class="text-xs text-gray-600">Golpes Totales</p>
+								<p class="text-lg font-bold text-gray-800">${game.totalStrokes}</p>
+							</div>
+						</div>
+					</div>
+				`;
+
+				// Botón de cerrar fijo
+				const footer = `
+					<div class="sticky bottom-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 pt-3 mt-4 flex justify-end">
+						<button onclick="APP.closeGameDetail()" class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow">
+							Cerrar
+						</button>
+					</div>
+				`;
+
+				// Contenido principal
+				const holeSections = rows.map((r, i) => `
+					<h4 class="font-semibold text-gray-700 mb-2 text-center">Hoyos ${i * 6 + 1}–${i * 6 + 6}</h4>
+					${renderHoleRow(r)}
+				`).join('');
+
+				content.innerHTML = `
+					<div class="rounded-xl bg-gradient-to-b from-white via-gray-50 to-gray-100 p-3 border border-gray-200 shadow-inner">
+						${header}
+						${holeSections}
+						${footer}
+					</div>
+				`;
+
+				modal.classList.remove('hidden');
+			},
+
+
+			/** Cierra el popup */
+			closeGameDetail() {
+				document.getElementById('game-detail-modal').classList.add('hidden');
+			},
+
+			/** Ordena las partidas del historial */
+			sortHistory(criteria) {
+				switch (criteria) {
+					case 'date_asc':
+						historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+						break;
+					case 'hcp_desc':
+						historyData.sort((a, b) => b.scoreHCP - a.scoreHCP);
+						break;
+					case 'sch_desc':
+						historyData.sort((a, b) => b.scoreSCH - a.scoreSCH);
+						break;
+					default:
+						historyData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+				}
+				APP.renderHistoryList();
+			},
 
             /** Busca una partida por ID y la carga para edición */
             editGame(gameId) {
