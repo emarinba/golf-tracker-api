@@ -641,6 +641,186 @@
                 // Renderizar Gráfica Simple (Representación de evolución)
                 APP.renderSimpleChart(data);
             },
+				
+			/** Actualiza el panel de estadísticas con los filtros actuales */
+			updateStatsView() {
+				if (!historyData.length) return;
+
+				const selectedCourse = document.getElementById('filter-course').value;
+				const startFilter = document.getElementById('filter-start').value;
+				const endFilter = document.getElementById('filter-end').value;
+
+				let data = [...historyData];
+				if (selectedCourse !== 'all') data = data.filter(g => g.courseName === selectedCourse);
+
+				if (startFilter) {
+					const start = new Date(startFilter);
+					data = data.filter(g => new Date(g.timestamp) >= start);
+				}
+				if (endFilter) {
+					const end = new Date(endFilter);
+					data = data.filter(g => new Date(g.timestamp) <= new Date(end.getFullYear(), end.getMonth() + 1, 0));
+				}
+
+				APP.renderStatsSummary(data);
+				APP.renderStatsCharts(data);
+			},
+
+			/** Rellena el selector de campos */
+			populateCourseFilter() {
+				const select = document.getElementById('filter-course');
+				if (!select) return;
+				const courses = [...new Set(historyData.map(g => g.courseName))];
+				select.innerHTML = '<option value="all">Todos los campos</option>' + 
+					courses.map(c => `<option value="${c}">${c}</option>`).join('');
+			},
+
+			/** Tarjetas resumen */
+			renderStatsSummary(data) {
+				const totalGames = data.length;
+				if (!totalGames) {
+					document.getElementById('stats-summary').innerHTML = "<p class='text-gray-500 text-center'>No hay datos disponibles.</p>";
+					return;
+				}
+
+				const avgHCP = (data.reduce((s, g) => s + g.scoreHCP, 0) / totalGames).toFixed(1);
+				const avgSCH = (data.reduce((s, g) => s + g.scoreSCH, 0) / totalGames).toFixed(1);
+				const avgStrokes = (data.reduce((s, g) => s + g.totalStrokes, 0) / totalGames).toFixed(1);
+				const avgHandicap = (data.reduce((s, g) => s + g.handicapTotal, 0) / totalGames).toFixed(1);
+
+				document.getElementById('stats-summary').innerHTML = `
+					<div class="p-4 bg-green-50 rounded-lg border border-green-200 text-center">
+						<p class="text-xs text-green-700">Promedio Puntos HCP</p>
+						<p class="text-2xl font-extrabold text-green-900">${avgHCP}</p>
+					</div>
+					<div class="p-4 bg-blue-50 rounded-lg border border-blue-200 text-center">
+						<p class="text-xs text-blue-700">Promedio Puntos SCR</p>
+						<p class="text-2xl font-extrabold text-blue-900">${avgSCH}</p>
+					</div>
+					<div class="p-4 bg-yellow-50 rounded-lg border border-yellow-200 text-center">
+						<p class="text-xs text-yellow-700">Promedio Golpes</p>
+						<p class="text-2xl font-extrabold text-yellow-900">${avgStrokes}</p>
+					</div>
+					<div class="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center">
+						<p class="text-xs text-gray-600">Promedio Hándicap Total</p>
+						<p class="text-2xl font-extrabold text-gray-900">${avgHandicap}</p>
+					</div>
+				`;
+			},
+
+			/** Dibuja todas las gráficas dinámicas */
+			renderStatsCharts(data) {
+				if (!data.length) return;
+
+				const sorted = [...data].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+				const labels = sorted.map(g => new Date(g.timestamp).toLocaleDateString('es-ES'));
+				const hcp = sorted.map(g => g.scoreHCP);
+				const sch = sorted.map(g => g.scoreSCH);
+				const strokes = sorted.map(g => g.totalStrokes);
+				const handicap = sorted.map(g => g.handicapTotal);
+
+				// 🔹 Gráfica combinada (evolución temporal)
+				APP.drawChart("chart-evolution", {
+					labels,
+					datasets: [
+						{
+							type: 'line',
+							label: "Puntos HCP",
+							data: hcp,
+							borderColor: "#10b981",
+							backgroundColor: "#10b98133",
+							tension: 0.3,
+							yAxisID: 'y1'
+						},
+						{
+							type: 'line',
+							label: "Puntos SCR",
+							data: sch,
+							borderColor: "#3b82f6",
+							backgroundColor: "#3b82f633",
+							tension: 0.3,
+							yAxisID: 'y1'
+						},
+						{
+							type: 'bar',
+							label: "Golpes",
+							data: strokes,
+							backgroundColor: "#fbbf24aa",
+							borderColor: "#f59e0b",
+							yAxisID: 'y2'
+						}
+					]
+				}, {
+					responsive: true,
+					interaction: { mode: 'index', intersect: false },
+					scales: {
+						y1: { type: 'linear', position: 'left', beginAtZero: true },
+						y2: { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } }
+					}
+				});
+
+				// 🔹 Promedios por campo
+				const byCourse = {};
+				data.forEach(g => {
+					if (!byCourse[g.courseName]) byCourse[g.courseName] = { hcp: 0, sch: 0, strokes: 0, count: 0 };
+					const c = byCourse[g.courseName];
+					c.hcp += g.scoreHCP;
+					c.sch += g.scoreSCH;
+					c.strokes += g.totalStrokes;
+					c.count++;
+				});
+				const courseNames = Object.keys(byCourse);
+				const avgHcp = courseNames.map(c => (byCourse[c].hcp / byCourse[c].count).toFixed(1));
+				const avgSch = courseNames.map(c => (byCourse[c].sch / byCourse[c].count).toFixed(1));
+				const avgStrokes = courseNames.map(c => (byCourse[c].strokes / byCourse[c].count).toFixed(1));
+
+				APP.drawChart("chart-courses", {
+					labels: courseNames,
+					datasets: [
+						{ label: "Promedio HCP", data: avgHcp, backgroundColor: "#10b981" },
+						{ label: "Promedio SCR", data: avgSch, backgroundColor: "#3b82f6" },
+						{ label: "Promedio Golpes", data: avgStrokes, backgroundColor: "#f59e0b" }
+					]
+				});
+
+				// 🔹 Hándicap total
+				APP.drawChart("chart-handicap", {
+					labels,
+					datasets: [
+						{
+							label: "Hándicap Total",
+							data: handicap,
+							borderColor: "#6366f1",
+							backgroundColor: "#a5b4fc",
+							tension: 0.3,
+							fill: true
+						}
+					]
+				});
+			},
+
+			/** Función genérica para crear/actualizar gráficos */
+			drawChart(canvasId, data, options = {}) {
+				const ctx = document.getElementById(canvasId);
+				if (!ctx) return;
+				if (!APP._charts) APP._charts = {};
+				if (APP._charts[canvasId]) APP._charts[canvasId].destroy();
+
+				APP._charts[canvasId] = new Chart(ctx, {
+					type: data.datasets.length > 1 ? "bar" : "line",
+					data,
+					options: {
+						responsive: true,
+						plugins: {
+							legend: { position: "top" },
+							tooltip: { mode: "index", intersect: false }
+						},
+						scales: { y: { beginAtZero: true } },
+						...options
+					}
+				});
+			},
+
 
             /** Genera una gráfica de texto/HTML simple para la evolución */
             renderSimpleChart(data) {

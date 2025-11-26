@@ -22,7 +22,7 @@
         <!-- Header -->
         <header class="card p-4 mb-6 flex flex-col md:flex-row justify-between items-center bg-green-50">
             <h1 class="text-2xl font-extrabold text-green-800 mb-3 md:mb-0">
-                ScoreTracker GOLF ⛳
+                ScoreTracker GOLF ⛳ (vía Google Sheets)
             </h1>
             <nav class="space-x-2 flex">
                 <button onclick="APP.switchView('game-entry')" class="nav-btn p-2 rounded-lg text-sm font-medium bg-green-700 text-white hover:bg-green-600 transition">Nueva Partida</button>
@@ -123,45 +123,50 @@
 
         <!-- Estadísticas -->
         <section id="stats" class="view">
-            <div class="card p-6">
-                <h2 class="text-2xl font-bold mb-4">Estadísticas Globales</h2>
+		  <div class="card p-6">
+			<h2 class="text-2xl font-bold mb-4">📊 Estadísticas de Juego</h2>
 
-                <!-- Panel -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" id="global-stats">
-                    <div class="p-4 bg-indigo-50 rounded-lg">
-                        <p class="text-sm font-medium text-indigo-700">Partidas Totales</p>
-                        <p class="text-2xl font-extrabold text-indigo-900" id="stat-total-games">0</p>
-                    </div>
-                    <div class="p-4 bg-green-50 rounded-lg">
-                        <p class="text-sm font-medium text-green-700">Promedio HCP</p>
-                        <p class="text-2xl font-extrabold text-green-900" id="stat-avg-hcp">0.0</p>
-                    </div>
-                    <div class="p-4 bg-blue-50 rounded-lg">
-                        <p class="text-sm font-medium text-blue-700">Promedio SCH</p>
-                        <p class="text-2xl font-extrabold text-blue-900" id="stat-avg-sch">0.0</p>
-                    </div>
-                </div>
+			<!-- Filtros -->
+			<div class="flex flex-col md:flex-row md:items-end md:space-x-4 mb-6">
+			  <div class="flex-1">
+				<label class="block text-sm font-medium text-gray-700">Filtrar por campo</label>
+				<select id="filter-course" class="w-full p-2 border rounded-lg" onchange="APP.updateStatsView()">
+				  <option value="all">Todos los campos</option>
+				</select>
+			  </div>
+			  <div class="mt-3 md:mt-0">
+				<label class="block text-sm font-medium text-gray-700">Rango de fechas</label>
+				<input type="month" id="filter-start" class="border rounded-lg p-1 text-sm"> -
+				<input type="month" id="filter-end" class="border rounded-lg p-1 text-sm">
+				<button onclick="APP.updateStatsView()" class="ml-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">
+				  Filtrar
+				</button>
+			  </div>
+			</div>
 
-                <h3 class="text-xl font-semibold mb-3">Mejores y Peores Partidas</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div class="p-4 bg-green-100 rounded-lg">
-                        <p class="font-semibold text-green-800">Mejor HCP</p>
-                        <p id="stat-best-hcp" class="text-sm">N/A</p>
-                    </div>
-                    <div class="p-4 bg-blue-100 rounded-lg">
-                        <p class="font-semibold text-blue-800">Mejor SCH</p>
-                        <p id="stat-best-sch" class="text-sm">N/A</p>
-                    </div>
-                </div>
+			<!-- Resumen -->
+			<div id="stats-summary" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6"></div>
 
-                <h3 class="text-xl font-semibold mb-3">Evolución (HCP vs SCH)</h3>
-                <div class="p-4 card bg-gray-50 h-64 flex items-center justify-center">
-                    <p class="text-gray-500">
-                        Aquí iría una gráfica real. Podemos agregarla más adelante.
-                    </p>
-                </div>
-            </div>
-        </section>
+			<!-- Gráficas -->
+			<div class="space-y-6">
+			  <div class="p-4 bg-white rounded-lg shadow">
+				<h3 class="font-semibold mb-2">Evolución de Puntos HCP / SCR / Golpes</h3>
+				<canvas id="chart-evolution" height="100"></canvas>
+			  </div>
+
+			  <div class="p-4 bg-white rounded-lg shadow">
+				<h3 class="font-semibold mb-2">Comparativa por Campo</h3>
+				<canvas id="chart-courses" height="100"></canvas>
+			  </div>
+
+			  <div class="p-4 bg-white rounded-lg shadow">
+				<h3 class="font-semibold mb-2">Hándicap Total - Evolución</h3>
+				<canvas id="chart-handicap" height="100"></canvas>
+			  </div>
+			</div>
+		  </div>
+		</section>
+
 
     </div>
 	<!-- Modal de Detalle de Partida -->
@@ -174,6 +179,7 @@
 
 
     <!-- JS externo -->
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
