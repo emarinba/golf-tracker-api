@@ -4,30 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor de Partidas de Golf (HCP/SCH)</title>
-
-    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- CSS externo -->
-    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0fdf4;
+        }
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.06);
+        }
+        .view { display: none; }
+        .hole-input {
+            width: 50px;
+            text-align: center;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            padding: 0.25rem;
+            font-size: 0.875rem;
+        }
+        .hcp-score { color: #10b981; font-weight: 700; }
+        .sch-score { color: #3b82f6; font-weight: 700; }
+        .score-box {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .hcp-box { background-color: #d1fae5; color:#065f46; }
+        .sch-box { background-color:#dbeafe; color:#1e40af; }
+        #game-detail-modal, #compact-modal, #compare-modal {
+            animation: fadeIn 0.2s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .modal-content {
+            max-height: 80vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #10b981 #f0fdf4;
+        }
+        .modal-content::-webkit-scrollbar { width: 6px; }
+        .modal-content::-webkit-scrollbar-thumb {
+            background-color: #10b981;
+            border-radius: 3px;
+        }
+        canvas { max-width: 100%; }
+    </style>
 </head>
-
 <body class="p-4 md:p-8">
-
     <div id="app" class="max-w-7xl mx-auto">
-
         <!-- Header -->
         <header class="card p-4 mb-6 flex flex-col md:flex-row justify-between items-center bg-green-50">
             <h1 class="text-2xl font-extrabold text-green-800 mb-3 md:mb-0">
                 ScoreTracker GOLF ⛳
             </h1>
-            <nav class="space-x-2 flex">
-                <button onclick="APP.switchView('game-entry')" class="nav-btn p-2 rounded-lg text-sm font-medium bg-green-700 text-white hover:bg-green-600 transition">Nueva Partida</button>
-                <button onclick="APP.switchView('history')" class="nav-btn p-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 transition">Historial</button>
+            <nav class="space-x-2 flex flex-wrap justify-center">
+                <button onclick="APP.switchView('history')" class="nav-btn p-2 rounded-lg text-sm font-medium bg-green-700 text-white hover:bg-gray-300 transition">Historial</button>
+                <button onclick="APP.switchView('game-entry')" class="nav-btn p-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-green-600 transition">Nueva Partida</button>
+                <button onclick="APP.switchView('courses')" class="nav-btn p-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 transition">Campos</button>
                 <button onclick="APP.switchView('stats')" class="nav-btn p-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 transition">Estadísticas</button>
+                <button onclick="APP.switchView('compare')" class="nav-btn p-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 transition">Comparar</button>
             </nav>
         </header>
 
@@ -36,30 +79,88 @@
             <span id="auth-status">Base de Datos: Google Sheets (Conectado)</span>
             <span id="user-id-display" class="font-mono text-xs mt-1 md:mt-0">ID de Usuario: Generado Localmente</span>
         </div>
-
         <div id="error-message" class="hidden mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg"></div>
 
-        <!-- ====================== VISTAS ======================== -->
-
-        <!-- Nueva Partida -->
-        <section id="game-entry" class="view" style="display:block;">
+        <!-- VISTA: GESTIÓN DE CAMPOS -->
+        <section id="courses" class="view">
             <div class="card p-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" id="entry-title">
-                    Nueva Partida de 18 Hoyos
-                </h2>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">🏌️ Gestión de Campos</h2>
+                    <button onclick="APP.showAddCourseForm()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                        + Añadir Campo
+                    </button>
+                </div>
+                
+                <!-- Formulario Añadir/Editar Campo -->
+                <div id="course-form-container" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h3 class="font-bold mb-4" id="course-form-title">Nuevo Campo</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Campo</label>
+                            <input type="text" id="course-name-input" class="w-full p-2 border rounded-lg" placeholder="Ej: Club de Golf Mediterráneo">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
+                            <input type="text" id="course-location-input" class="w-full p-2 border rounded-lg" placeholder="Ej: Valencia, España">
+                        </div>
+                    </div>
+
+                    <h4 class="font-semibold mb-2 text-sm">Configuración de Hoyos</h4>
+                    <div class="overflow-x-auto mb-4">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-2 py-2">Hoyo</th>
+                                    <th class="px-2 py-2">Par</th>
+                                    <th class="px-2 py-2">⭐ HCP</th>
+                                </tr>
+                            </thead>
+                            <tbody id="course-holes-table">
+                                <!-- Se generará dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex justify-end space-x-3">
+                        <button onclick="APP.cancelCourseForm()" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100">Cancelar</button>
+                        <button onclick="APP.saveCourse()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Guardar Campo</button>
+                    </div>
+                </div>
+
+                <!-- Lista de Campos -->
+                <div id="courses-list" class="space-y-3">
+                    <p class="text-gray-500 text-center py-8">Cargando campos...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- VISTA: NUEVA PARTIDA -->
+        <section id="game-entry" class="view">
+            <div class="card p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" id="entry-title">Nueva Partida de 18 Hoyos</h2>
 
                 <!-- Metadatos -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Campo</label>
-                        <input type="text" id="course-name" class="w-full p-2 border rounded-lg" value="Mi Campo Favorito" required>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Campo</label>
+                        <select id="course-select" class="w-full p-2 border rounded-lg" onchange="APP.loadCourseData()">
+                            <option value="">Selecciona un campo</option>
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Hándicap de Juego</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Torneo/Partida</label>
+                        <input type="text" id="game-name-input" class="w-full p-2 border rounded-lg" placeholder="Ej: Torneo Primavera 2025">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha del Torneo</label>
+                        <input type="date" id="game-date-input" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Hándicap de Juego</label>
                         <input type="number" id="handicap-total" class="w-full p-2 border rounded-lg" value="20" min="0">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">ID de Partida</label>
+                    <div class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ID de Partida</label>
                         <input type="text" id="game-id-edit" class="w-full p-2 border rounded-lg bg-gray-100" readonly value="NUEVA">
                     </div>
                 </div>
@@ -77,7 +178,7 @@
                                 <th class="px-3 py-3 text-xs font-medium text-gray-500">P. SCH</th>
                             </tr>
                         </thead>
-                        <tbody id="score-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                        <tbody id="score-table-body" class="bg-white divide-y divide-gray-200 text-center"></tbody>
                         <tfoot class="bg-gray-100 border-t-2 border-gray-300">
                             <tr class="font-bold">
                                 <td colspan="3" class="px-3 py-3 text-gray-800">TOTALES:</td>
@@ -89,97 +190,1183 @@
                     </table>
                 </div>
 
-                <!-- Botones -->
                 <div class="mt-6 flex justify-end space-x-3">
-                    <button onclick="APP.resetForm()" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100">
-                        Limpiar Formulario
-                    </button>
-                    <button id="save-game-btn" onclick="APP.saveGame()" class="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">
-                        Guardar Partida
-                    </button>
+                    <button onclick="APP.resetForm()" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100">Limpiar Formulario</button>
+                    <button id="save-game-btn" onclick="APP.saveGame()" class="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">Guardar Partida</button>
                 </div>
             </div>
         </section>
 
-        <!-- Historial -->
-        <section id="history" class="view">
+        <!-- VISTA: HISTORIAL -->
+        <section id="history" class="view" style="display:block;">
             <div class="card p-6">
                 <h2 class="text-2xl font-bold mb-4">Historial de Partidas</h2>
-				<div class="flex justify-between items-center mb-4">
-				  <label for="sort-history" class="text-sm font-medium text-gray-700">Ordenar por:</label>
-				  <select id="sort-history" class="p-2 border rounded-lg text-sm" onchange="APP.sortHistory(this.value)">
-					<option value="date_desc">Fecha (más recientes)</option>
-					<option value="date_asc">Fecha (más antiguas)</option>
-					<option value="hcp_desc">Puntos HCP (mayor a menor)</option>
-					<option value="sch_desc">Puntos SCH (mayor a menor)</option>
-				  </select>
-				</div>
-
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
+                    <div class="flex items-center space-x-2">
+                        <label for="sort-history" class="text-sm font-medium text-gray-700">Ordenar:</label>
+                        <select id="sort-history" class="p-2 border rounded-lg text-sm" onchange="APP.sortHistory(this.value)">
+                            <option value="date_desc">Fecha (más recientes)</option>
+                            <option value="date_asc">Fecha (más antiguas)</option>
+                            <option value="hcp_desc">Puntos HCP ↓</option>
+                            <option value="sch_desc">Puntos SCH ↓</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label for="filter-course-history" class="text-sm font-medium text-gray-700">Campo:</label>
+                        <select id="filter-course-history" class="p-2 border rounded-lg text-sm" onchange="APP.filterHistoryByCourse()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                </div>
                 <div id="history-list" class="space-y-4">
                     <p class="text-gray-500 text-center py-8">Cargando historial...</p>
                 </div>
             </div>
         </section>
 
-        <!-- Estadísticas -->
+        <!-- VISTA: ESTADÍSTICAS -->
         <section id="stats" class="view">
-		  <div class="card p-6">
-			<h2 class="text-2xl font-bold mb-4">📊 Estadísticas de Juego</h2>
+            <div class="card p-6">
+                <h2 class="text-2xl font-bold mb-4">📊 Estadísticas de Juego</h2>
+                
+                <!-- Filtros -->
+                <div class="flex flex-col md:flex-row md:items-end md:space-x-4 mb-6">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-gray-700">Filtrar por campo</label>
+                        <select id="filter-course" class="w-full p-2 border rounded-lg" onchange="APP.updateStatsView()">
+                            <option value="all">Todos los campos</option>
+                        </select>
+                    </div>
+                    <div class="mt-3 md:mt-0">
+                        <label class="block text-sm font-medium text-gray-700">Rango de fechas</label>
+                        <input type="month" id="filter-start" class="border rounded-lg p-1 text-sm"> -
+                        <input type="month" id="filter-end" class="border rounded-lg p-1 text-sm">
+                        <button onclick="APP.updateStatsView()" class="ml-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Filtrar</button>
+                    </div>
+                </div>
 
-			<!-- Filtros -->
-			<div class="flex flex-col md:flex-row md:items-end md:space-x-4 mb-6">
-			  <div class="flex-1">
-				<label class="block text-sm font-medium text-gray-700">Filtrar por campo</label>
-				<select id="filter-course" class="w-full p-2 border rounded-lg" onchange="APP.updateStatsView()">
-				  <option value="all">Todos los campos</option>
-				</select>
-			  </div>
-			  <div class="mt-3 md:mt-0">
-				<label class="block text-sm font-medium text-gray-700">Rango de fechas</label>
-				<input type="month" id="filter-start" class="border rounded-lg p-1 text-sm"> -
-				<input type="month" id="filter-end" class="border rounded-lg p-1 text-sm">
-				<button onclick="APP.updateStatsView()" class="ml-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">
-				  Filtrar
-				</button>
-			  </div>
-			</div>
+                <!-- Resumen -->
+                <div id="stats-summary" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6"></div>
 
-			<!-- Resumen -->
-			<div id="stats-summary" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6"></div>
+                <!-- Análisis por Campo -->
+                <div id="stats-by-course" class="mb-6"></div>
 
-			<!-- Gráficas -->
-			<div class="space-y-6">
-			  <div class="p-4 bg-white rounded-lg shadow">
-				<h3 class="font-semibold mb-2">Evolución de Puntos HCP / SCR / Golpes</h3>
-				<canvas id="chart-evolution" height="100"></canvas>
-			  </div>
+                <!-- Gráficas -->
+                <div class="space-y-6">
+                    <div class="p-4 bg-white rounded-lg shadow">
+                        <h3 class="font-semibold mb-2">Evolución de Puntos HCP / SCR / Golpes</h3>
+                        <canvas id="chart-evolution" height="100"></canvas>
+                    </div>
+                    <div class="p-4 bg-white rounded-lg shadow">
+                        <h3 class="font-semibold mb-2">Comparativa por Campo</h3>
+                        <canvas id="chart-courses" height="100"></canvas>
+                    </div>
+                    <div class="p-4 bg-white rounded-lg shadow">
+                        <h3 class="font-semibold mb-2">Hándicap Total - Evolución</h3>
+                        <canvas id="chart-handicap" height="100"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-			  <div class="p-4 bg-white rounded-lg shadow">
-				<h3 class="font-semibold mb-2">Comparativa por Campo</h3>
-				<canvas id="chart-courses" height="100"></canvas>
-			  </div>
+        <!-- VISTA: COMPARAR PARTIDAS -->
+        <section id="compare" class="view">
+            <div class="card p-6">
+                <h2 class="text-2xl font-bold mb-4">⚖️ Comparar Partidas</h2>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Selecciona un campo para comparar partidas</label>
+                    <select id="compare-course-select" class="w-full p-2 border rounded-lg" onchange="APP.loadGamesForComparison()">
+                        <option value="">Selecciona un campo</option>
+                    </select>
+                </div>
 
-			  <div class="p-4 bg-white rounded-lg shadow">
-				<h3 class="font-semibold mb-2">Hándicap Total - Evolución</h3>
-				<canvas id="chart-handicap" height="100"></canvas>
-			  </div>
-			</div>
-		  </div>
-		</section>
+                <div id="compare-games-container" class="hidden">
+                    <p class="text-sm text-gray-600 mb-3">Selecciona 2-4 partidas para comparar:</p>
+                    <div id="compare-games-list" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6"></div>
+                    
+                    <button onclick="APP.compareSelectedGames()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Comparar Seleccionadas
+                    </button>
+                </div>
 
-
+                <div id="compare-result" class="mt-6"></div>
+            </div>
+        </section>
     </div>
-	<!-- Modal de Detalle de Partida -->
-	<div id="game-detail-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-	  <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full p-6 relative overflow-y-auto max-h-[90vh]">
-		<button onclick="APP.closeGameDetail()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 font-bold text-xl">&times;</button>
-		<div id="game-detail-content"></div>
-	  </div>
-	</div>
 
+    <!-- Modales -->
+    <div id="game-detail-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full p-6 relative modal-content">
+            <button onclick="APP.closeGameDetail()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 font-bold text-xl">&times;</button>
+            <div id="game-detail-content"></div>
+        </div>
+    </div>
 
-    <!-- JS externo -->
-	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="app.js"></script>
+    <div id="compact-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl p-6 relative modal-content" style="max-width: 800px; width: 100%;">
+            <button onclick="APP.closeCompactModal()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 font-bold text-xl">&times;</button>
+            <div id="compact-detail"></div>
+        </div>
+    </div>
+
+    <div id="compare-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full p-6 relative modal-content">
+            <button onclick="APP.closeCompareModal()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 font-bold text-xl">&times;</button>
+            <div id="compare-modal-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const GOOGLE_SHEETS_API_URL = "https://golf-tracker-api.vercel.app/api/golf";
+        
+        let userId = localStorage.getItem('golf_user_id') || `user_${Math.random().toString(36).substring(2, 11)}`;
+        localStorage.setItem('golf_user_id', userId);
+
+        let historyData = [];
+        let coursesData = [];
+        let editingGameId = null;
+        let editingCourseId = null;
+        const HOLES_COUNT = 18;
+
+        const DOMElements = {
+            authStatus: document.getElementById('auth-status'),
+            userIdDisplay: document.getElementById('user-id-display'),
+            errorMessage: document.getElementById('error-message'),
+            scoreTableBody: document.getElementById('score-table-body'),
+            totalStrokes: document.getElementById('total-strokes'),
+            totalHCP: document.getElementById('total-hcp'),
+            totalSCH: document.getElementById('total-sch'),
+            gameIdEdit: document.getElementById('game-id-edit'),
+            entryTitle: document.getElementById('entry-title'),
+            saveGameBtn: document.getElementById('save-game-btn'),
+            historyList: document.getElementById('history-list'),
+            courseSelect: document.getElementById('course-select'),
+            handicapTotal: document.getElementById('handicap-total'),
+            gameNameInput: document.getElementById('game-name-input'),
+            gameDateInput: document.getElementById('game-date-input')
+        };
+
+        const APP = {
+            async initialize() {
+                DOMElements.userIdDisplay.textContent = `ID de Usuario: ${userId}`;
+                
+                // Establecer fecha de hoy por defecto
+                const today = new Date().toISOString().split('T')[0];
+                DOMElements.gameDateInput.value = today;
+                
+                APP.renderHoleInputs();
+                await APP.loadCourses();
+                await APP.listenForGames();
+            },
+
+            displayError(message) {
+                console.error(message);
+                DOMElements.errorMessage.textContent = `Error: ${message}`;
+                DOMElements.errorMessage.classList.remove('hidden');
+            },
+
+            switchView(viewId) {
+                document.querySelectorAll('.view').forEach(view => view.style.display = 'none');
+                document.getElementById(viewId).style.display = 'block';
+
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.remove('bg-green-700', 'text-white');
+                    btn.classList.add('bg-gray-200', 'text-gray-800');
+                    if (btn.getAttribute('onclick').includes(viewId)) {
+                        btn.classList.add('bg-green-700', 'text-white');
+                        btn.classList.remove('bg-gray-200', 'text-gray-800');
+                    }
+                });
+
+                if (viewId === 'stats' && historyData.length > 0) {
+                    APP.updateStatsView();
+                }
+                if (viewId === 'compare') {
+                    APP.populateCompareCourseSelect();
+                }
+            },
+
+            // === GESTIÓN DE CAMPOS ===
+            async loadCourses() {
+                try {
+                    const response = await fetch(`${GOOGLE_SHEETS_API_URL}?action=getCourses`);
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        coursesData = result.data || [];
+                        APP.renderCoursesList();
+                        APP.populateCourseSelects();
+                    } else {
+                        alertMessage('Error al cargar campos: ' + result.error, 'bg-red-500');
+                    }
+                } catch (e) {
+                    console.error('Error cargando campos:', e);
+                    alertMessage('Error al cargar campos', 'bg-red-500');
+                }
+            },
+
+            renderCoursesList() {
+                const container = document.getElementById('courses-list');
+                if (coursesData.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-8">No hay campos registrados. Añade uno nuevo.</p>';
+                    return;
+                }
+
+                container.innerHTML = coursesData.map(course => `
+                    <div class="p-4 border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-800">${course.name}</h3>
+                                <p class="text-sm text-gray-500">📍 ${course.location || 'Sin ubicación'}</p>
+                                <p class="text-xs text-gray-400">Añadido: ${new Date(course.dateAdded).toLocaleDateString('es-ES')}</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="APP.editCourse('${course.id}')" class="p-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                                    Editar
+                                </button>
+                                <button onclick="APP.deleteCourse('${course.id}')" class="p-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600">
+                                    Eliminar
+                                </button>
+                            </div>
+                        </div>
+                        ${course.holes ? `
+                            <div class="mt-3 text-xs text-gray-600">
+                                <span class="font-semibold">Par:</span> ${course.holes.map(h => h.par).join('-')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+            },
+
+            showAddCourseForm() {
+                editingCourseId = null;
+                document.getElementById('course-form-title').textContent = 'Nuevo Campo';
+                document.getElementById('course-name-input').value = '';
+                document.getElementById('course-location-input').value = '';
+                APP.renderCourseHolesTable();
+                document.getElementById('course-form-container').classList.remove('hidden');
+            },
+
+            renderCourseHolesTable(holes = null) {
+                const tbody = document.getElementById('course-holes-table');
+                const defaultPar = [4, 4, 3, 4, 5, 3, 4, 4, 5, 4, 4, 3, 4, 5, 3, 4, 4, 5];
+                
+                tbody.innerHTML = '';
+                for (let i = 1; i <= HOLES_COUNT; i++) {
+                    const hole = holes ? holes[i-1] : null;
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td class="px-2 py-2 text-center">${i}</td>
+                        <td class="px-2 py-2">
+                            <input type="number" data-hole="${i}" data-type="par" class="course-hole-input w-full p-1 border rounded text-center" min="3" max="6" value="${hole ? hole.par : defaultPar[i-1]}">
+                        </td>
+                        <td class="px-2 py-2">
+                            <input type="number" data-hole="${i}" data-type="stars" class="course-hole-input w-full p-1 border rounded text-center" min="0" max="3" value="${hole ? hole.stars : 0}">
+                        </td>
+                    `;
+                }
+            },
+
+            async saveCourse() {
+                const name = document.getElementById('course-name-input').value.trim();
+                const location = document.getElementById('course-location-input').value.trim();
+
+                if (!name) {
+                    return alertMessage('El nombre del campo es obligatorio', 'bg-yellow-500');
+                }
+
+                const holes = [];
+                for (let i = 1; i <= HOLES_COUNT; i++) {
+                    const par = parseInt(document.querySelector(`input[data-hole="${i}"][data-type="par"]`).value) || 4;
+                    const stars = parseInt(document.querySelector(`input[data-hole="${i}"][data-type="stars"]`).value) || 0;
+                    holes.push({ hole: i, par, stars });
+                }
+
+                const courseData = {
+                    id: editingCourseId || generateId(),
+                    name,
+                    location,
+                    holes,
+                    dateAdded: new Date().toISOString()
+                };
+
+                try {
+                    const action = editingCourseId ? 'updateCourse' : 'addCourse';
+                    await APP.sendApiRequest(action, courseData);
+                    
+                    alertMessage(editingCourseId ? 'Campo actualizado' : 'Campo añadido', 'bg-green-600');
+                    APP.cancelCourseForm();
+                    await APP.loadCourses();
+                } catch (e) {
+                    alertMessage('Error al guardar el campo', 'bg-red-500');
+                }
+            },
+
+            editCourse(courseId) {
+                const course = coursesData.find(c => c.id === courseId);
+                if (!course) return;
+
+                editingCourseId = courseId;
+                document.getElementById('course-form-title').textContent = 'Editar Campo';
+                document.getElementById('course-name-input').value = course.name;
+                document.getElementById('course-location-input').value = course.location || '';
+                APP.renderCourseHolesTable(course.holes);
+                document.getElementById('course-form-container').classList.remove('hidden');
+                APP.switchView('courses');
+            },
+
+            async deleteCourse(courseId) {
+                if (!confirm('¿Eliminar este campo? Las partidas asociadas no se eliminarán.')) return;
+
+                try {
+                    await APP.sendApiRequest('deleteCourse', { id: courseId });
+                    alertMessage('Campo eliminado', 'bg-red-500');
+                    await APP.loadCourses();
+                } catch (e) {
+                    alertMessage('Error al eliminar el campo', 'bg-red-500');
+                }
+            },
+
+            cancelCourseForm() {
+                editingCourseId = null;
+                document.getElementById('course-form-container').classList.add('hidden');
+            },
+
+            populateCourseSelects() {
+                const selects = [
+                    document.getElementById('course-select'),
+                    document.getElementById('filter-course'),
+                    document.getElementById('filter-course-history'),
+                    document.getElementById('compare-course-select')
+                ];
+
+                selects.forEach(select => {
+                    if (!select) return;
+                    const currentValue = select.value;
+                    const isFilter = select.id.includes('filter') || select.id.includes('compare');
+                    
+                    select.innerHTML = isFilter ? 
+                        (select.id === 'filter-course' ? '<option value="all">Todos los campos</option>' : '<option value="">Todos</option>') : 
+                        '<option value="">Selecciona un campo</option>';
+                    
+                    coursesData.forEach(course => {
+                        select.innerHTML += `<option value="${course.id}">${course.name}</option>`;
+                    });
+                    
+                    if (currentValue) select.value = currentValue;
+                });
+            },
+
+            loadCourseData() {
+                const courseId = DOMElements.courseSelect.value;
+                if (!courseId) return;
+
+                const course = coursesData.find(c => c.id === courseId);
+                if (!course || !course.holes) return;
+
+                course.holes.forEach((hole, index) => {
+                    const i = index + 1;
+                    const parInput = document.querySelector(`#hole-row-${i} input[data-type="par"]`);
+                    const starsInput = document.querySelector(`#hole-row-${i} input[data-type="stars"]`);
+                    
+                    if (parInput) parInput.value = hole.par || 4;
+                    if (starsInput) starsInput.value = hole.stars || 0;
+                });
+
+                APP.updateTotals();
+            },
+
+            // === LÓGICA DE PUNTUACIÓN ===
+            calculatePoints(par, stars, strokes) {
+                if (strokes <= 0 || isNaN(par) || isNaN(stars) || isNaN(strokes)) {
+                    return { hcp: 0, sch: 0 };
+                }
+
+                const targetHCP = par + stars;
+                const strokesDiffHCP = targetHCP - strokes;
+                const hcpPoints = Math.max(0, 2 + strokesDiffHCP);
+
+                const targetSCH = par;
+                const strokesDiffSCH = targetSCH - strokes;
+                const schPoints = Math.max(0, 2 + strokesDiffSCH);
+
+                return { hcp: hcpPoints, sch: schPoints };
+            },
+
+            // === UI DE ENTRADA DE DATOS ===
+            renderHoleInputs() {
+                DOMElements.scoreTableBody.innerHTML = '';
+                const defaultPar = [4, 4, 3, 4, 5, 3, 4, 4, 5, 4, 4, 3, 4, 5, 3, 4, 4, 5];
+                
+                for (let i = 1; i <= HOLES_COUNT; i++) {
+                    const row = DOMElements.scoreTableBody.insertRow();
+                    row.id = `hole-row-${i}`;
+                    row.classList.add('hover:bg-gray-50');
+
+                    const holeCell = row.insertCell();
+                    holeCell.textContent = i;
+                    holeCell.className = 'text-center';
+                    
+                    row.insertCell().innerHTML = `<input type="number" data-hole="${i}" data-type="par" class="hole-input par-input" min="1" value="${defaultPar[i-1] || 4}" oninput="APP.updateHoleScore(${i})">`;
+                    row.insertCell().innerHTML = `<input type="number" data-hole="${i}" data-type="stars" class="hole-input stars-input" min="0" value="0" oninput="APP.updateHoleScore(${i})">`;
+                    row.insertCell().innerHTML = `<input type="number" data-hole="${i}" data-type="strokes" class="hole-input strokes-input bg-yellow-50" min="1" value="" oninput="APP.updateHoleScore(${i})">`;
+                    
+                    const hcpCell = row.insertCell();
+                    hcpCell.id = `hcp-score-${i}`;
+                    hcpCell.className = 'hcp-score px-3 py-2 text-center';
+                    hcpCell.textContent = '0';
+
+                    const schCell = row.insertCell();
+                    schCell.id = `sch-score-${i}`;
+                    schCell.className = 'sch-score px-3 py-2 text-center';
+                    schCell.textContent = '0';
+                }
+                APP.updateTotals();
+            },
+
+            loadGameForEditing(game) {
+                editingGameId = game.id;
+                DOMElements.entryTitle.textContent = `Editando: ${game.gameName || game.courseName}`;
+                DOMElements.saveGameBtn.textContent = 'Sobrescribir Partida';
+                DOMElements.gameIdEdit.value = game.id;
+                DOMElements.courseSelect.value = game.courseId || '';
+                DOMElements.gameNameInput.value = game.gameName || '';
+                DOMElements.handicapTotal.value = game.handicapTotal || 0;
+                
+                // Establecer fecha
+                if (game.gameDate) {
+                    DOMElements.gameDateInput.value = game.gameDate;
+                } else if (game.timestamp) {
+                    const date = new Date(game.timestamp);
+                    DOMElements.gameDateInput.value = date.toISOString().split('T')[0];
+                }
+
+                const holes = game.holes || [];
+                holes.forEach((hole, index) => {
+                    const i = index + 1;
+                    document.querySelector(`#hole-row-${i} input[data-type="par"]`).value = hole.par || 4;
+                    document.querySelector(`#hole-row-${i} input[data-type="stars"]`).value = hole.stars || 0;
+                    document.querySelector(`#hole-row-${i} input[data-type="strokes"]`).value = hole.strokes || '';
+                    document.getElementById(`hcp-score-${i}`).textContent = hole.hcpPoints || 0;
+                    document.getElementById(`sch-score-${i}`).textContent = hole.schPoints || 0;
+                });
+
+                APP.updateTotals();
+                APP.switchView('game-entry');
+            },
+
+            updateHoleScore(holeNumber) {
+                const parInput = document.querySelector(`#hole-row-${holeNumber} input[data-type="par"]`);
+                const starsInput = document.querySelector(`#hole-row-${holeNumber} input[data-type="stars"]`);
+                const strokesInput = document.querySelector(`#hole-row-${holeNumber} input[data-type="strokes"]`);
+
+                const par = parseInt(parInput.value) || 0;
+                const stars = parseInt(starsInput.value) || 0;
+                const strokes = parseInt(strokesInput.value) || 0;
+
+                const { hcp, sch } = APP.calculatePoints(par, stars, strokes);
+
+                document.getElementById(`hcp-score-${holeNumber}`).textContent = hcp;
+                document.getElementById(`sch-score-${holeNumber}`).textContent = sch;
+                
+                APP.updateTotals();
+            },
+
+            updateTotals() {
+                let totalStrokes = 0, totalHCP = 0, totalSCH = 0;
+
+                for (let i = 1; i <= HOLES_COUNT; i++) {
+                    const strokesInput = document.querySelector(`#hole-row-${i} input[data-type="strokes"]`);
+                    const strokes = parseInt(strokesInput.value) || 0;
+                    totalStrokes += strokes;
+                    totalHCP += parseInt(document.getElementById(`hcp-score-${i}`).textContent) || 0;
+                    totalSCH += parseInt(document.getElementById(`sch-score-${i}`).textContent) || 0;
+                }
+
+                DOMElements.totalStrokes.textContent = totalStrokes;
+                DOMElements.totalHCP.textContent = totalHCP;
+                DOMElements.totalSCH.textContent = totalSCH;
+            },
+
+            resetForm() {
+                editingGameId = null;
+                DOMElements.entryTitle.textContent = 'Nueva Partida de 18 Hoyos';
+                DOMElements.saveGameBtn.textContent = 'Guardar Partida';
+                DOMElements.gameIdEdit.value = 'NUEVA';
+                DOMElements.courseSelect.value = '';
+                DOMElements.gameNameInput.value = '';
+                DOMElements.handicapTotal.value = 20;
+                
+                const today = new Date().toISOString().split('T')[0];
+                DOMElements.gameDateInput.value = today;
+
+                for (let i = 1; i <= HOLES_COUNT; i++) {
+                    document.querySelector(`#hole-row-${i} input[data-type="stars"]`).value = 0;
+                    document.querySelector(`#hole-row-${i} input[data-type="strokes"]`).value = '';
+                }
+                
+                APP.renderHoleInputs();
+            },
+
+            // === PERSISTENCIA DE DATOS ===
+            async sendApiRequest(action, data) {
+                try {
+                    const response = await fetch(GOOGLE_SHEETS_API_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action, data })
+                    });
+
+                    const text = await response.text();
+                    let json;
+                    try {
+                        json = JSON.parse(text);
+                    } catch {
+                        throw new Error("Respuesta inválida del servidor: " + text);
+                    }
+
+                    if (json.error) throw new Error(json.error);
+                    return json;
+                } catch (e) {
+                    APP.displayError("Error de comunicación: " + e.message);
+                    throw e;
+                }
+            },
+
+            getGameData() {
+                const holes = [];
+                for (let i = 1; i <= HOLES_COUNT; i++) {
+                    const par = parseInt(document.querySelector(`#hole-row-${i} input[data-type="par"]`).value) || 0;
+                    const stars = parseInt(document.querySelector(`#hole-row-${i} input[data-type="stars"]`).value) || 0;
+                    const strokes = parseInt(document.querySelector(`#hole-row-${i} input[data-type="strokes"]`).value) || 0;
+                    const hcpPoints = parseInt(document.getElementById(`hcp-score-${i}`).textContent) || 0;
+                    const schPoints = parseInt(document.getElementById(`sch-score-${i}`).textContent) || 0;
+                    holes.push({ par, stars, strokes, hcpPoints, schPoints, hole: i });
+                }
+
+                const courseId = DOMElements.courseSelect.value;
+                const course = coursesData.find(c => c.id === courseId);
+                const courseName = course ? course.name : 'Campo sin nombre';
+                const gameName = DOMElements.gameNameInput.value.trim() || courseName;
+                const gameDate = DOMElements.gameDateInput.value;
+
+                return {
+                    id: editingGameId,
+                    courseId: courseId,
+                    courseName: courseName, // Nombre del campo
+                    gameName: gameName, // Nombre del torneo/partida
+                    gameDate: gameDate,
+                    handicapTotal: parseInt(DOMElements.handicapTotal.value) || 0,
+                    scoreHCP: parseInt(DOMElements.totalHCP.textContent) || 0,
+                    scoreSCH: parseInt(DOMElements.totalSCH.textContent) || 0,
+                    totalStrokes: parseInt(DOMElements.totalStrokes.textContent) || 0,
+                    createdBy: userId,
+                    holes: holes
+                };
+            },
+
+            async saveGame() {
+                const totalStrokes = parseInt(DOMElements.totalStrokes.textContent) || 0;
+                if (totalStrokes === 0) {
+                    return alertMessage('Introduce los golpes reales en al menos un hoyo.', 'bg-yellow-500');
+                }
+
+                if (!DOMElements.courseSelect.value) {
+                    return alertMessage('Selecciona un campo', 'bg-yellow-500');
+                }
+
+                if (!DOMElements.gameNameInput.value.trim()) {
+                    return alertMessage('Introduce un nombre para el torneo/partida', 'bg-yellow-500');
+                }
+
+                const gameData = APP.getGameData();
+                DOMElements.saveGameBtn.textContent = 'Guardando...';
+                DOMElements.saveGameBtn.disabled = true;
+
+                try {
+                    await APP.sendApiRequest('save', gameData);
+                    alertMessage(editingGameId ? 'Partida actualizada' : 'Partida guardada', 'bg-green-600');
+                    APP.resetForm();
+                    await APP.listenForGames();
+                    APP.switchView('history');
+                } catch (e) {
+                    alertMessage('Error al guardar la partida', 'bg-red-500');
+                } finally {
+                    DOMElements.saveGameBtn.textContent = editingGameId ? 'Sobrescribir Partida' : 'Guardar Partida';
+                    DOMElements.saveGameBtn.disabled = false;
+                }
+            },
+
+            async deleteGame(gameId) {
+                if (!confirm('¿Eliminar esta partida?')) return;
+
+                try {
+                    await APP.sendApiRequest('delete', { id: gameId });
+                    alertMessage('Partida eliminada', 'bg-red-500');
+                    await APP.listenForGames();
+                } catch (e) {
+                    alertMessage('Error al eliminar', 'bg-red-500');
+                }
+            },
+
+            async listenForGames() {
+                DOMElements.historyList.innerHTML = '<p class="text-gray-500 text-center py-8">Cargando historial...</p>';
+                
+                try {
+                    const response = await fetch(GOOGLE_SHEETS_API_URL);
+                    if (!response.ok) throw new Error(`Error: ${response.status}`);
+                    
+                    const text = await response.text();
+                    const games = JSON.parse(text);
+                    
+                    if (games.error) throw new Error(games.error);
+
+                    historyData = games;
+                    historyData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                    APP.renderHistoryList();
+                    APP.populateCourseSelects();
+                } catch (error) {
+                    APP.displayError(`Error al cargar el historial: ${error.message}`);
+                }
+            },
+
+            // === HISTORIAL ===
+            renderHistoryList() {
+                if (historyData.length === 0) {
+                    DOMElements.historyList.innerHTML = '<p class="text-gray-500 text-center py-8">No hay partidas guardadas.</p>';
+                    return;
+                }
+
+                DOMElements.historyList.innerHTML = historyData.map(game => {
+                    let dateStr = 'Fecha N/A';
+                    try {
+                        if (game.gameDate) {
+                            dateStr = new Date(game.gameDate).toLocaleDateString('es-ES');
+                        } else if (game.timestamp) {
+                            dateStr = new Date(game.timestamp).toLocaleDateString('es-ES');
+                        }
+                    } catch (e) {}
+                    
+                    const displayName = game.gameName || game.courseName;
+                    const fieldName = game.courseName || 'Campo desconocido';
+                    
+                    return `
+                        <div class="p-4 border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md transition grid grid-cols-1 md:grid-cols-4 items-center gap-4">
+                            <div class="md:col-span-2">
+                                <h3 class="text-lg font-bold text-gray-800">${displayName}</h3>
+                                <p class="text-sm text-gray-600">📍 ${fieldName}</p>
+                                <p class="text-sm text-gray-500">Hándicap: ${game.handicapTotal}</p>
+                                <p class="text-xs text-gray-400">${dateStr}</p>
+                            </div>
+                            <div class="flex flex-col space-y-1">
+                                <span class="score-box hcp-box">HCP: ${game.scoreHCP} pts</span>
+                                <span class="score-box sch-box">SCH: ${game.scoreSCH} pts</span>
+                                <span class="score-box bg-gray-100 text-gray-700">Golpes: ${game.totalStrokes}</span>
+                            </div>
+                            <div class="flex space-x-2 justify-end">
+                                <button onclick="APP.showCompactModal('${game.id}')" class="p-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600">Resultados</button>
+                                <button onclick="APP.editGame('${game.id}')" class="p-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600">Editar</button>
+                                <button onclick="APP.deleteGame('${game.id}')" class="p-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600">Eliminar</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            filterHistoryByCourse() {
+                const courseId = document.getElementById('filter-course-history').value;
+                if (!courseId) {
+                    APP.renderHistoryList();
+                    return;
+                }
+
+                const filtered = historyData.filter(g => g.courseId === courseId);
+                const tempData = historyData;
+                historyData = filtered;
+                APP.renderHistoryList();
+                historyData = tempData;
+            },
+
+            sortHistory(criteria) {
+                switch (criteria) {
+                    case 'date_asc':
+                        historyData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                        break;
+                    case 'hcp_desc':
+                        historyData.sort((a, b) => b.scoreHCP - a.scoreHCP);
+                        break;
+                    case 'sch_desc':
+                        historyData.sort((a, b) => b.scoreSCH - a.scoreSCH);
+                        break;
+                    default:
+                        historyData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                }
+                APP.renderHistoryList();
+            },
+
+            editGame(gameId) {
+                const game = historyData.find(g => g.id === gameId);
+                if (game) {
+                    APP.loadGameForEditing(game);
+                } else {
+                    alertMessage('Partida no encontrada', 'bg-red-500');
+                }
+            },
+
+            // === MODALES ===
+            showCompactModal(gameId) {
+                const game = historyData.find(g => g.id === gameId);
+                if (!game) return alertMessage('Partida no encontrada', 'bg-red-500');
+
+                const modal = document.getElementById('compact-modal');
+                const content = document.getElementById('compact-detail');
+
+                const displayName = game.gameName || game.courseName;
+                const holes = game.holes || [];
+                let tableHtml = `
+                    <h3 class="text-xl font-bold mb-3">${displayName}</h3>
+                    <p class="text-sm text-gray-600 mb-3">📍 ${game.courseName}</p>
+                    <table class="w-full text-xs border-collapse border border-gray-200">
+                        <tbody>
+                            <tr class="h-8">
+                                <td class="font-semibold px-2 py-1 border">Hoyo</td>
+                                ${holes.map((h, i) => `<td class="text-center px-1 py-1 border ${i === 8 ? 'border-r-2 border-gray-400' : ''}">${h.hole}</td>`).join('')}
+                                <td class="border"></td>
+                            </tr>
+                            <tr class="h-8">
+                                <td class="font-semibold px-2 py-1 border">Par</td>
+                                ${holes.map((h, i) => `<td class="text-center px-1 py-1 border ${i === 8 ? 'border-r-2 border-gray-400' : ''}">${h.par}</td>`).join('')}
+                                <td class="border"></td>
+                            </tr>
+                            <tr class="h-8">
+                                <td class="font-semibold px-2 py-1 border">Golpes</td>
+                                ${holes.map((h, i) => `<td class="text-center px-1 py-1 border ${APP.scoreColor(h.hcpPoints)} ${i === 8 ? 'border-r-2 border-gray-400' : ''}">${h.strokes}</td>`).join('')}
+                                <td class="font-bold px-2 py-1 border">${game.totalStrokes}</td>
+                            </tr>
+                            <tr class="h-8">
+                                <td class="font-semibold px-2 py-1 border">HCP</td>
+                                ${holes.map((h, i) => `<td class="text-center px-1 py-1 border ${APP.scoreColor(h.hcpPoints)} ${i === 8 ? 'border-r-2 border-gray-400' : ''}">${h.hcpPoints}</td>`).join('')}
+                                <td class="font-bold px-2 py-1 border">${game.scoreHCP}</td>
+                            </tr>
+                            <tr class="h-8">
+                                <td class="font-semibold px-2 py-1 border">SCR</td>
+                                ${holes.map((h, i) => `<td class="text-center px-1 py-1 border ${APP.scoreColor(h.schPoints)} ${i === 8 ? 'border-r-2 border-gray-400' : ''}">${h.schPoints}</td>`).join('')}
+                                <td class="font-bold px-2 py-1 border">${game.scoreSCH}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+
+                content.innerHTML = tableHtml;
+                modal.classList.remove('hidden');
+            },
+
+            closeCompactModal() {
+                document.getElementById('compact-modal').classList.add('hidden');
+            },
+
+            closeGameDetail() {
+                document.getElementById('game-detail-modal').classList.add('hidden');
+            },
+
+            scoreColor(points) {
+                if (points >= 3) return 'bg-green-300 text-green-900';
+                if (points === 2) return 'bg-yellow-300 text-yellow-900';
+                if (points === 1) return 'bg-orange-300 text-orange-900';
+                return 'bg-red-300 text-red-900';
+            },
+
+            // === ESTADÍSTICAS ===
+            updateStatsView() {
+                if (!historyData.length) return;
+
+                const selectedCourse = document.getElementById('filter-course').value;
+                const startFilter = document.getElementById('filter-start').value;
+                const endFilter = document.getElementById('filter-end').value;
+
+                let data = [...historyData];
+                if (selectedCourse !== 'all' && selectedCourse) {
+                    data = data.filter(g => g.courseId === selectedCourse);
+                }
+
+                if (startFilter) {
+                    const start = new Date(startFilter);
+                    data = data.filter(g => new Date(g.timestamp) >= start);
+                }
+                if (endFilter) {
+                    const end = new Date(endFilter);
+                    data = data.filter(g => new Date(g.timestamp) <= new Date(end.getFullYear(), end.getMonth() + 1, 0));
+                }
+
+                APP.renderStatsSummary(data);
+                APP.renderStatsByCourse(data);
+                APP.renderStatsCharts(data);
+            },
+
+            renderStatsSummary(data) {
+                const totalGames = data.length;
+                if (!totalGames) {
+                    document.getElementById('stats-summary').innerHTML = "<p class='text-gray-500 text-center'>No hay datos disponibles.</p>";
+                    return;
+                }
+
+                const avgHCP = (data.reduce((s, g) => s + g.scoreHCP, 0) / totalGames).toFixed(1);
+                const avgSCH = (data.reduce((s, g) => s + g.scoreSCH, 0) / totalGames).toFixed(1);
+                const avgStrokes = (data.reduce((s, g) => s + g.totalStrokes, 0) / totalGames).toFixed(1);
+                const avgHandicap = (data.reduce((s, g) => s + g.handicapTotal, 0) / totalGames).toFixed(1);
+
+                document.getElementById('stats-summary').innerHTML = `
+                    <div class="p-4 bg-green-50 rounded-lg border border-green-200 text-center">
+                        <p class="text-xs text-green-700">Promedio HCP</p>
+                        <p class="text-2xl font-extrabold text-green-900">${avgHCP}</p>
+                    </div>
+                    <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 text-center">
+                        <p class="text-xs text-blue-700">Promedio SCR</p>
+                        <p class="text-2xl font-extrabold text-blue-900">${avgSCH}</p>
+                    </div>
+                    <div class="p-4 bg-yellow-50 rounded-lg border border-yellow-200 text-center">
+                        <p class="text-xs text-yellow-700">Promedio Golpes</p>
+                        <p class="text-2xl font-extrabold text-yellow-900">${avgStrokes}</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center">
+                        <p class="text-xs text-gray-600">Promedio Hándicap</p>
+                        <p class="text-2xl font-extrabold text-gray-900">${avgHandicap}</p>
+                    </div>
+                `;
+            },
+
+            renderStatsByCourse(data) {
+                const container = document.getElementById('stats-by-course');
+                const byCourse = {};
+                
+                data.forEach(g => {
+                    if (!byCourse[g.courseName]) {
+                        byCourse[g.courseName] = { games: [], totalHCP: 0, totalSCH: 0, totalStrokes: 0 };
+                    }
+                    byCourse[g.courseName].games.push(g);
+                    byCourse[g.courseName].totalHCP += g.scoreHCP;
+                    byCourse[g.courseName].totalSCH += g.scoreSCH;
+                    byCourse[g.courseName].totalStrokes += g.totalStrokes;
+                });
+
+                const courseNames = Object.keys(byCourse);
+                if (courseNames.length === 0) {
+                    container.innerHTML = '';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <h3 class="font-semibold text-lg mb-3">📈 Análisis por Campo</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${courseNames.map(name => {
+                            const info = byCourse[name];
+                            const count = info.games.length;
+                            const avgHCP = (info.totalHCP / count).toFixed(1);
+                            const avgSCH = (info.totalSCH / count).toFixed(1);
+                            const avgStrokes = (info.totalStrokes / count).toFixed(1);
+                            
+                            return `
+                                <div class="p-4 bg-white rounded-lg shadow border">
+                                    <h4 class="font-bold text-gray-800 mb-2">${name}</h4>
+                                    <p class="text-sm text-gray-600 mb-2">🏌️ ${count} partida${count > 1 ? 's' : ''} jugada${count > 1 ? 's' : ''}</p>
+                                    <div class="grid grid-cols-3 gap-2 text-xs">
+                                        <div class="text-center p-2 bg-green-50 rounded">
+                                            <p class="text-green-700">HCP</p>
+                                            <p class="font-bold">${avgHCP}</p>
+                                        </div>
+                                        <div class="text-center p-2 bg-blue-50 rounded">
+                                            <p class="text-blue-700">SCR</p>
+                                            <p class="font-bold">${avgSCH}</p>
+                                        </div>
+                                        <div class="text-center p-2 bg-gray-50 rounded">
+                                            <p class="text-gray-700">Golpes</p>
+                                            <p class="font-bold">${avgStrokes}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            },
+
+            renderStatsCharts(data) {
+                if (!data.length) return;
+
+                const sorted = [...data].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                const labels = sorted.map(g => new Date(g.timestamp).toLocaleDateString('es-ES'));
+                const hcp = sorted.map(g => g.scoreHCP);
+                const sch = sorted.map(g => g.scoreSCH);
+                const strokes = sorted.map(g => g.totalStrokes);
+                const handicap = sorted.map(g => g.handicapTotal);
+
+                APP.drawChart("chart-evolution", {
+                    labels,
+                    datasets: [
+                        { type: 'line', label: "Puntos HCP", data: hcp, borderColor: "#10b981", backgroundColor: "#10b98133", tension: 0.3, yAxisID: 'y1' },
+                        { type: 'line', label: "Puntos SCR", data: sch, borderColor: "#3b82f6", backgroundColor: "#3b82f633", tension: 0.3, yAxisID: 'y1' },
+                        { type: 'bar', label: "Golpes", data: strokes, backgroundColor: "#fbbf24aa", borderColor: "#f59e0b", yAxisID: 'y2' }
+                    ]
+                }, {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y1: { type: 'linear', position: 'left', beginAtZero: true },
+                        y2: { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } }
+                    }
+                });
+
+                const byCourse = {};
+                data.forEach(g => {
+                    if (!byCourse[g.courseName]) byCourse[g.courseName] = { hcp: 0, sch: 0, strokes: 0, count: 0 };
+                    const c = byCourse[g.courseName];
+                    c.hcp += g.scoreHCP;
+                    c.sch += g.scoreSCH;
+                    c.strokes += g.totalStrokes;
+                    c.count++;
+                });
+                const courseNames = Object.keys(byCourse);
+                const avgHcp = courseNames.map(c => (byCourse[c].hcp / byCourse[c].count).toFixed(1));
+                const avgSch = courseNames.map(c => (byCourse[c].sch / byCourse[c].count).toFixed(1));
+                const avgStrokes = courseNames.map(c => (byCourse[c].strokes / byCourse[c].count).toFixed(1));
+
+                APP.drawChart("chart-courses", {
+                    labels: courseNames,
+                    datasets: [
+                        { label: "Promedio HCP", data: avgHcp, backgroundColor: "#10b981" },
+                        { label: "Promedio SCR", data: avgSch, backgroundColor: "#3b82f6" },
+                        { label: "Promedio Golpes", data: avgStrokes, backgroundColor: "#f59e0b" }
+                    ]
+                });
+
+                APP.drawChart("chart-handicap", {
+                    labels,
+                    datasets: [
+                        { label: "Hándicap Total", data: handicap, borderColor: "#6366f1", backgroundColor: "#a5b4fc", tension: 0.3, fill: true }
+                    ]
+                });
+            },
+
+            drawChart(canvasId, data, options = {}) {
+                const ctx = document.getElementById(canvasId);
+                if (!ctx) return;
+                if (!APP._charts) APP._charts = {};
+                if (APP._charts[canvasId]) APP._charts[canvasId].destroy();
+
+                APP._charts[canvasId] = new Chart(ctx, {
+                    type: data.datasets.length > 1 ? "bar" : "line",
+                    data,
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: "top" },
+                            tooltip: { mode: "index", intersect: false }
+                        },
+                        scales: { y: { beginAtZero: true } },
+                        ...options
+                    }
+                });
+            },
+
+            // === COMPARAR PARTIDAS ===
+            populateCompareCourseSelect() {
+                const select = document.getElementById('compare-course-select');
+                if (!select) return;
+                
+                const coursesWithGames = [...new Set(historyData.map(g => g.courseId))].filter(id => id);
+                select.innerHTML = '<option value="">Selecciona un campo</option>';
+                
+                coursesWithGames.forEach(courseId => {
+                    const course = coursesData.find(c => c.id === courseId);
+                    if (course) {
+                        const count = historyData.filter(g => g.courseId === courseId).length;
+                        select.innerHTML += `<option value="${courseId}">${course.name} (${count} partidas)</option>`;
+                    }
+                });
+            },
+
+            loadGamesForComparison() {
+                const courseId = document.getElementById('compare-course-select').value;
+                if (!courseId) {
+                    document.getElementById('compare-games-container').classList.add('hidden');
+                    document.getElementById('compare-result').innerHTML = '';
+                    return;
+                }
+
+                const games = historyData.filter(g => g.courseId === courseId);
+                const container = document.getElementById('compare-games-list');
+                
+                container.innerHTML = games.map(game => {
+                    let dateStr = 'Sin fecha';
+                    if (game.gameDate) {
+                        dateStr = new Date(game.gameDate).toLocaleDateString('es-ES');
+                    } else if (game.timestamp) {
+                        dateStr = new Date(game.timestamp).toLocaleDateString('es-ES');
+                    }
+                    
+                    const displayName = game.gameName || game.courseName;
+                    
+                    return `
+                        <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" class="compare-game-checkbox mr-3" value="${game.id}">
+                            <div class="flex-1">
+                                <p class="font-semibold text-sm">${displayName}</p>
+                                <p class="text-xs text-gray-600">${dateStr}</p>
+                                <p class="text-xs text-gray-500">HCP: ${game.scoreHCP} | SCR: ${game.scoreSCH} | Golpes: ${game.totalStrokes}</p>
+                            </div>
+                        </label>
+                    `;
+                }).join('');
+
+                document.getElementById('compare-games-container').classList.remove('hidden');
+                document.getElementById('compare-result').innerHTML = '';
+            },
+
+            compareSelectedGames() {
+                const checkboxes = document.querySelectorAll('.compare-game-checkbox:checked');
+                const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+
+                if (selectedIds.length < 2 || selectedIds.length > 4) {
+                    return alertMessage('Selecciona entre 2 y 4 partidas', 'bg-yellow-500');
+                }
+
+                const games = selectedIds.map(id => historyData.find(g => g.id === id));
+                APP.showComparisonModal(games);
+            },
+
+            showComparisonModal(games) {
+                const modal = document.getElementById('compare-modal');
+                const content = document.getElementById('compare-modal-content');
+
+                const courseId = games[0].courseId;
+                const course = coursesData.find(c => c.id === courseId);
+
+                let html = `
+                    <h2 class="text-2xl font-bold mb-4">⚖️ Comparativa: ${course ? course.name : 'Campo'}</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm border-collapse">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="border px-2 py-2">Hoyo</th>
+                                    ${games.map((g, i) => {
+                                        const displayName = g.gameName || g.courseName;
+                                        let dateStr = 'Sin fecha';
+                                        if (g.gameDate) {
+                                            dateStr = new Date(g.gameDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+                                        } else if (g.timestamp) {
+                                            dateStr = new Date(g.timestamp).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+                                        }
+                                        return `<th class="border px-2 py-2 bg-blue-${(i+1)*100}">${displayName}<br><span class="text-xs font-normal">${dateStr}</span></th>`;
+                                    }).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                // Fila de golpes por hoyo
+                for (let h = 1; h <= HOLES_COUNT; h++) {
+                    html += `<tr><td class="border px-2 py-2 font-semibold text-center">H${h}</td>`;
+                    
+                    games.forEach(game => {
+                        const hole = game.holes.find(ho => ho.hole === h);
+                        const strokes = hole ? hole.strokes : '-';
+                        const hcp = hole ? hole.hcpPoints : 0;
+                        html += `<td class="border px-2 py-2 text-center ${APP.scoreColor(hcp)}">${strokes}</td>`;
+                    });
+                    
+                    html += `</tr>`;
+                }
+
+                // Totales
+                html += `
+                    <tr class="font-bold bg-gray-50">
+                        <td class="border px-2 py-2">Total Golpes</td>
+                        ${games.map(g => `<td class="border px-2 py-2 text-center">${g.totalStrokes}</td>`).join('')}
+                    </tr>
+                    <tr class="font-bold bg-green-50">
+                        <td class="border px-2 py-2">Puntos HCP</td>
+                        ${games.map(g => `<td class="border px-2 py-2 text-center text-green-700">${g.scoreHCP}</td>`).join('')}
+                    </tr>
+                    <tr class="font-bold bg-blue-50">
+                        <td class="border px-2 py-2">Puntos SCR</td>
+                        ${games.map(g => `<td class="border px-2 py-2 text-center text-blue-700">${g.scoreSCH}</td>`).join('')}
+                    </tr>
+                `;
+
+                html += `</tbody></table></div>`;
+
+                // Análisis de diferencias
+                html += `<div class="mt-6">
+                    <h3 class="font-semibold mb-3">📊 Análisis de Diferencias por Hoyo</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                `;
+
+                // Calcular mejor, peor y más variables por hoyo
+                const holeAnalysis = [];
+                for (let h = 1; h <= HOLES_COUNT; h++) {
+                    const strokes = games.map(g => {
+                        const hole = g.holes.find(ho => ho.hole === h);
+                        return hole ? hole.strokes : 999;
+                    });
+                    const min = Math.min(...strokes);
+                    const max = Math.max(...strokes);
+                    const diff = max - min;
+                    holeAnalysis.push({ hole: h, min, max, diff });
+                }
+
+                const mostConsistent = [...holeAnalysis].sort((a, b) => a.diff - b.diff).slice(0, 3);
+                const mostVariable = [...holeAnalysis].sort((a, b) => b.diff - a.diff).slice(0, 3);
+
+                html += `
+                    <div class="p-4 bg-green-50 rounded-lg">
+                        <p class="font-semibold text-green-800 mb-2">🎯 Hoyos Más Consistentes</p>
+                        ${mostConsistent.map(h => `<p class="text-sm">Hoyo ${h.hole}: ±${h.diff} golpes</p>`).join('')}
+                    </div>
+                    <div class="p-4 bg-orange-50 rounded-lg">
+                        <p class="font-semibold text-orange-800 mb-2">⚠️ Hoyos Más Variables</p>
+                        ${mostVariable.map(h => `<p class="text-sm">Hoyo ${h.hole}: ±${h.diff} golpes</p>`).join('')}
+                    </div>
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <p class="font-semibold text-blue-800 mb-2">📈 Progresión</p>
+                        ${games.map((g, i) => {
+                            if (i === 0) return '';
+                            const diffHCP = g.scoreHCP - games[i-1].scoreHCP;
+                            const diffStrokes = g.totalStrokes - games[i-1].totalStrokes;
+                            const arrow = diffHCP > 0 ? '↑' : (diffHCP < 0 ? '↓' : '→');
+                            const name1 = games[i-1].gameName || games[i-1].courseName;
+                            const name2 = g.gameName || g.courseName;
+                            return `<p class="text-sm">${name1.substring(0,15)}... → ${name2.substring(0,15)}...: ${arrow} ${diffHCP > 0 ? '+' : ''}${diffHCP} HCP, ${diffStrokes > 0 ? '+' : ''}${diffStrokes} golpes</p>`;
+                        }).join('')}
+                    </div>
+                `;
+
+                html += `</div></div>`;
+
+                content.innerHTML = html;
+                modal.classList.remove('hidden');
+            },
+
+            closeCompareModal() {
+                document.getElementById('compare-modal').classList.add('hidden');
+            }
+        };
+
+        function alertMessage(message, bgColor) {
+            const tempDiv = document.createElement('div');
+            tempDiv.textContent = message;
+            tempDiv.className = `fixed top-4 right-4 z-50 p-4 rounded-lg text-white font-semibold shadow-xl ${bgColor}`;
+            document.body.appendChild(tempDiv);
+            setTimeout(() => tempDiv.remove(), 3000);
+        }
+
+        function generateId() {
+            return 'id_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+        }
+
+        window.APP = APP;
+        window.onload = APP.initialize;
+    </script>
 </body>
 </html>
